@@ -28,7 +28,7 @@ import pypm
 PitchSensitive  =    1      #   Pitch Bend Sensibility in Semitones
 Client          =    129    #   This is the MIDI Client ID for Timidity    
 Port            =    0      #   And the port
-
+ADDR            =   0
 def GetFreq(note):
     '''
         Given a Midi Note Number, return its Frequency
@@ -50,7 +50,7 @@ def GetPitchNote(note,pitch):
     
 
 # configure the serial connections (the parameters differs on the device you are connecting to)
-ser = serial.Serial('/dev/ttyACM0', 115200)
+ser = serial.Serial('/dev/ttyUSB0', 115200)
 ser.close()
 ser.open()
 ser.isOpen()
@@ -75,15 +75,7 @@ def ConfigPWM(number, period, tOn):
     UpperNibble    =    (int) (period / 256)
     LowerNibble    =    (int) (period % 256)
     Channel        =    192 + number
-    SendByte        =    array.array('B', [Channel, UpperNibble, LowerNibble, tOn]).tostring();
-    ser.write(SendByte)
-
-def StartPWM(number):
-    '''
-        Starts the PWM on Slave
-    '''
-    Channel        =    160 + number
-    SendByte       =    array.array('B', [Channel, 0xFF, 0xFF, 0xFF]).tostring()
+    SendByte        =    array.array('B', [number+1, 0x01, UpperNibble, LowerNibble, tOn]).tostring();
     ser.write(SendByte)
 
 def StopPWM(number):
@@ -91,44 +83,28 @@ def StopPWM(number):
         Stops the PWM on Slave
     '''
     Channel        =    176 + number
-    SendByte       =    array.array('B', [Channel, 0xFF, 0xFF, 0xFF]).tostring()
+    SendByte       =    array.array('B', [number+1, 0x02, 0xFF, 0xFF, 0xFF]).tostring()
     ser.write(SendByte)
-
-def LedControl(number,value):
-    '''
-        Sets/Resets a Led on Slave
-    '''
-    Channel        =    240 + number
-    SendByte       =    array.array('B', [Channel, value%256, 0xFF, 0xFF]).tostring()
-    ser.write(SendByte)
-
-def GetFirmware():
-    '''
-        Gets the Firmware version at Slave
-    '''
-    GetFirmwareCMD    = array.array('B', [0x00, 0xFF, 0xFF, 0xFF]).tostring()
-    ser.write(GetFirmwareCMD)
-    time.sleep(0.1)
-    out = ''
-    if ser.inWaiting() > 0 :
-        packsize   =    ord(ser.read(1))
-        cmd        =    ord(ser.read(1))
-        vfw        =    ord(ser.read(1))
-        yfw        =    ord(ser.read(1))
-        mfw        =    ord(ser.read(1))
-        if cmd == 0x00:
-            print "Firmware version: v%d Date: %02d/%d" %(vfw,mfw,yfw)
 
 def ResetPWM(number):
     '''
         Resets a PWM Channel
     '''
-    SendByte    =    array.array('B', [0x01, number, 0xFF, 0xFF]).tostring()
+    SendByte    =    array.array('B', [number+1, 0x02, 0xFF, 0xFF]).tostring()
     ser.write(SendByte)
+
+def ResetAll():
+    '''
+        Resets a PWM Channel
+    '''
+    SendByte    =    array.array('B', [0x00, 0x00, 0xFF, 0xFF]).tostring()
+    ser.write(SendByte)
+    
     
 def InitAll():
     '''
         Initializes the system
+    '''
     '''
     GetFirmware()
     for i in range(0,4):
@@ -159,6 +135,8 @@ def InitAll():
         time.sleep(0.2)
         StopPWM(0)
     ConfigMaxtOn(255)
+    '''
+    ResetAll()
     time.sleep(1)
 
 print "Starting"
@@ -187,7 +165,7 @@ PrintDevices(INPUT)
 MidiIn = pypm.Input(1)
 PrintDevices(OUTPUT)
 print "Opening Timidity++"
-MidiOut    =    pypm.Output(3,0)
+MidiOut    =    pypm.Output(2,0)
 
 print "Midi started!"
 while True:
@@ -208,16 +186,14 @@ while True:
                                 else:
                                     tOn = 0
                                 ConfigPWM(x, GetPeriod(freq), tOn)
-                                ResetPWM(x)
                                 if tOn > 0:
-                                    StartPWM(x)
+                                    #StartPWM(x)
                                     PWM[x]["busy"]        =    True
 
 
                                 PWM[x]["note"]     =    fbyte
                                 PWM[x]["period"]    =    GetPeriod(freq)
                                 PWM[x]["tOn"]        =    tOn
-                                LedControl(x,(int)(255/127*sbyte))
                                 break
                     elif funcao == 0x80:
                         #   This Stops a note fbyte
@@ -225,7 +201,6 @@ while True:
                             if PWM[x]["busy"] == True and PWM[x]["note"] == fbyte:
                                 StopPWM(x)    
                                 PWM[x]["busy"]        =    False
-                                LedControl(x,0)
                                 break
                 elif    funcao == 0xE0:
                     #   This is the Pitch Bend Function
