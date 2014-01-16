@@ -50,7 +50,7 @@ def GetPitchNote(note,pitch):
     
 
 # configure the serial connections (the parameters differs on the device you are connecting to)
-ser = serial.Serial('/dev/ttyUSB0', 115200)
+ser = serial.Serial('/dev/ttyUSB1', 38400)
 ser.close()
 ser.open()
 ser.isOpen()
@@ -75,7 +75,8 @@ def ConfigPWM(number, period, tOn):
     UpperNibble    =    (int) (period / 256)
     LowerNibble    =    (int) (period % 256)
     Channel        =    192 + number
-    SendByte        =    array.array('B', [number+1, 0x01, UpperNibble, LowerNibble, tOn]).tostring();
+    print "Sending (%s,%s,%s,%s)"%(hex(number),hex(UpperNibble),hex(LowerNibble),hex(tOn))
+    SendByte        =    array.array('B', [number, 0x01, UpperNibble, LowerNibble, tOn]).tostring();
     ser.write(SendByte)
 
 def StopPWM(number):
@@ -83,14 +84,14 @@ def StopPWM(number):
         Stops the PWM on Slave
     '''
     Channel        =    176 + number
-    SendByte       =    array.array('B', [number+1, 0x02, 0xFF, 0xFF, 0xFF]).tostring()
+    SendByte       =    array.array('B', [number, 0x02, 0xFF, 0xFF, 0xFF]).tostring()
     ser.write(SendByte)
 
 def ResetPWM(number):
     '''
         Resets a PWM Channel
     '''
-    SendByte    =    array.array('B', [number+1, 0x02, 0xFF, 0xFF]).tostring()
+    SendByte    =    array.array('B', [number, 0x02, 0xFF, 0xFF]).tostring()
     ser.write(SendByte)
 
 def ResetAll():

@@ -15,24 +15,33 @@
 /**************************************************************/
 
 // Code optimzed for ATTINY2313
+#define ADDRESS 0  //  Use this to define the chip Address
+
 int count = 0;
+int softint = 0;
 unsigned char buff[5];
-static unsigned char  addr;
+//static unsigned char  addr = ADDRESS;
 
 void setup()  {
-    pinMode(9, OUTPUT);
-    pinMode(2, INPUT);
-    pinMode(3, INPUT);
-    pinMode(4, INPUT);
-    pinMode(5, OUTPUT);
+    pinMode(PIN_B3, OUTPUT);
+    pinMode(PIN_B4, OUTPUT);
+    //pinMode(CORE_PWM1_PIN, OUTPUT);
+    //pinMode(CORE_PWM2_PIN, OUTPUT);
+    //pinMode(CORE_PWM3_PIN, OUTPUT);
+    //pinMode(PIN_B1, INPUT);
+    //pinMode(PIN_B0, INPUT);
+    //pinMode(PIN_D6, INPUT);
+    pinMode(PIN_D2, OUTPUT);
     TCCR1A = (1 << COM1A1);    
     TCCR1B = _BV(WGM13) | 0x02 ; 
     TCNT1 = 0;
     OCR1A = 0;
     ICR1 = 1000;
-    addr = ((digitalRead(4) << 2) | (digitalRead(3) << 1) | (digitalRead(2)) +1);
-    Serial.begin(40000); 
+    //addr = ADDRESS;
+    //addr = ((digitalRead(4) << 2) | (digitalRead(3) << 1) | (digitalRead(2)) +1);
+    Serial.begin(38400); 
     Serial.println("Started");
+    softint = millis();
 }
 
 void setPWM(unsigned period, unsigned short tOn)  {
@@ -45,20 +54,23 @@ void loop()  {
        TCCR0B = 0x00;
        TCNT0 = 0x00;
        TIFR  = 0x00; 
-       if(buff[0] == addr)  {
+       if(buff[0] == ADDRESS)  {
           unsigned short period   =  ( (buff[2]*256) + buff[3] );
           unsigned short tOn      =  ( buff[4] );
           switch(buff[1])  {
             case 0x00:  //All Notes off
-              digitalWrite(5, LOW);
+              //Serial.println("AOFF");
+              digitalWrite(PIN_D2, LOW);
               setPWM(1000, 0);
               break;
             case 0x01:
-              digitalWrite(5, HIGH);
+              //Serial.println("ON");
+              digitalWrite(PIN_D2, HIGH);
               setPWM(period, tOn);
               break;
             case 0x02:
-              digitalWrite(5, LOW);
+              //Serial.println("OFF");
+              digitalWrite(PIN_D2, LOW);
               setPWM(1000,0);
               break;
           }
@@ -68,7 +80,12 @@ void loop()  {
     if (Serial.available() > 0) {
      buff[count] = Serial.read();
      count++; 
+     //softint = millis();
     }   
-    addr = ((digitalRead(4) << 2) | (digitalRead(3) << 1) | (digitalRead(2)) +1); 
+    if(millis()-softint > 300)  {
+     count = 0; 
+     softint = millis();
+    }
+    //addr = ((digitalRead(4) << 2) | (digitalRead(3) << 1) | (digitalRead(2)) +1); 
 }
 
